@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Weather App</title>
+    <style>
+      #map {
+        height: 400px;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Weather App</h1>
+    <form id="cityForm">
+      <label for="cityName">Enter City Name:</label>
+      <input type="text" name="cityName" id="cityName" required />
+    </form>
+
+    <form id="coordForm">
+      <label for="latitude">Enter Latitude:</label>
+      <input type="text" name="latitude" id="latitude" required />
+      <label for="longitude">Enter Longitude:</label>
+      <input type="text" name="longitude" id="longitude" required />
+      <button type="submit">Go</button>
+    </form>
+
+    <div id="map"></div>
+
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBXsy_weAYrxX7fGs06p90Bj4LmHJjKUf8&callback=initMap"
+      async
+      defer
+    ></script>
+    <script>
+      let map;
+
+      function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+          center: { lat: 0, lng: 0 },
+          zoom: 2,
+        });
+      }
+
+      function addMarker(lat, lon, popupText) {
+        const marker = new google.maps.Marker({
+          position: { lat: lat, lng: lon },
+          map: map,
+        });
+
+        const infoWindow = new google.maps.InfoWindow({
+          content: popupText,
+        });
+
+        marker.addListener("click", () => {
+          infoWindow.open(map, marker);
+        });
+      }
+
+      async function getWeather(lat, long) {
+        const url = "http://localhost:3000/weather";
+
+        try {
+          const myHeaders = new Headers();
+          myHeaders.append("Content-Type", "application/json");
+
+          const raw = JSON.stringify({
+            lat: lat,
+            long: long,
+          });
+
+          const requestOptions = {
+            method: "POST",
+            headers: myHeaders,
+            body: raw,
+            redirect: "follow",
+          };
+          const response = await fetch("http://localhost:3000/weather", requestOptions)
+          const data = await response.json();
+          const tempInK = data.main.temp;
+          const tempInC = (tempInK - 273.15).toFixed(0);
+          const description = data.weather[0].description;
+          const weatherData = `Weather: ${description}, ${tempInC}°C`;
+
+          map.setCenter({ lat: lat, lng: long });
+          map.setZoom(10);
+          addMarker(lat, long, weatherData);
+        } catch (error) {
+          console.error("Error fetching weather data:", error);
+        }
+      }
+
+      document
+        .getElementById("cityForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const city = document.getElementById("cityName").value;
+          const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=61b42f38c81d76a1bcc5aa083e391e0e`;
+
+          try {
+            const response = await fetch(url);
+            const data = await response.json();
+            const lat = data.coord.lat;
+            const lon = data.coord.lon;
+            await getWeather(lat, lon);
+          } catch (error) {
+            console.error("Error fetching city weather data:", error);
+          }
+        });
+
+      document
+        .getElementById("coordForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const lat = parseFloat(document.getElementById("latitude").value);
+          const lon = parseFloat(document.getElementById("longitude").value);
+          await getWeather(lat, lon);
+        });
+
+      window.initMap = initMap;
+    </script>
+  </body>
+</html>
